@@ -1,10 +1,10 @@
 import json
 from typing import Literal
 from datasets import load_dataset
-from .rubric import EventSchedulingRubric
-from .config import EventRubricConfig, MultiTurnConfig
-from .env_singleturn import EventSchedulingEnv, SYSTEM as SYSTEM_SINGLE
-from .env_multiturn import EventSchedulingMultiTurnEnv, SYSTEM as SYSTEM_MULTI
+from ..evals.rubric import EventSchedulingRubric
+from ..core.config import EventRubricConfig, MultiTurnConfig
+from ..core.env_singleturn import EventSchedulingEnv, SYSTEM as SYSTEM_SINGLE
+from ..core.env_multiturn import EventSchedulingMultiTurnEnv, SYSTEM as SYSTEM_MULTI
 
 def _map_example(ex, system_prompt: str):
     # Dataset fields expected:

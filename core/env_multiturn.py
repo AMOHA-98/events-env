@@ -1,8 +1,8 @@
 from typing import List, Dict, Any, Union, Literal, Tuple
 from verifiers.envs.environment import Environment
 from openai import OpenAI
-from .parsing import parse_schedule_any
-from .conflict_checker import check_conflicts
+from ..io.parsing import parse_schedule_any
+from ..evals.conflict_checker import check_conflicts
 from .config import MultiTurnConfig
 
 SYSTEM = (

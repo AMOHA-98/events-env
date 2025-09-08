@@ -31,7 +31,7 @@ By default, loaders use the Hugging Face dataset `anakin87/events-scheduling`. E
 Use `loader.load_environment` for single-turn or `loader.load_environment_multiturn` for multi-turn. Both accept convenience args for dataset sizing and realism.
 
 ```python
-from events_env.loader import load_environment, load_environment_multiturn
+from events_env.io.loader import load_environment, load_environment_multiturn
 
 # Single-turn
 env = load_environment(
@@ -122,4 +122,5 @@ For multi-turn, the environment injects validator feedback each turn until a cle
 - If completions include commentary, enable `allow_reasoning_tag` so `<think>...</think>` blocks are stripped, and remind the model to output ONLY JSON or XML.
 - If rewards are always 0, check that outputs parse as valid JSON/XML and that event names exactly match the dataset.
 - If normalization seems off, switch `normalize_with_optimal` to `dp` to compute a consistent denominator.
+
 

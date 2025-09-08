@@ -1,6 +1,6 @@
 from typing import List, Dict, Tuple
-from .time_utils import hhmm_to_min, duration_min, find_overlaps
-from .config import PenaltiesMinutes, RealismConfig
+from ..utils.time_utils import hhmm_to_min, duration_min, find_overlaps
+from ..core.config import PenaltiesMinutes, RealismConfig
 
 def events_index(events: List[List[str]]) -> dict[str, tuple[str,str]]:
     return {name: (start, end) for name, start, end in events}

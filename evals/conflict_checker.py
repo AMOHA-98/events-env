@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Tuple
-from .time_utils import hhmm_to_min, duration_min, find_overlaps
+from ..utils.time_utils import hhmm_to_min, duration_min, find_overlaps
 
 def events_index(events: List[List[str]]) -> dict[str, tuple[str,str]]:
     return {name: (start, end) for name, start, end in events}

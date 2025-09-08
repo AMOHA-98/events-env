@@ -1,9 +1,9 @@
 import json
 from verifiers import Rubric
 from typing import Any, Dict, List, Union
-from .parsing import parse_schedule_any
+from ..io.parsing import parse_schedule_any
 from .scoring import score_with_penalties, wis_optimum
-from .config import EventRubricConfig
+from ..core.config import EventRubricConfig
 
 class EventSchedulingRubric(Rubric):
     """
