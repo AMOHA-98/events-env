@@ -26,6 +26,9 @@ By default, loaders use the Hugging Face dataset `anakin87/events-scheduling`. E
 - `prompt`: A human-readable listing used for the user message
 - `optimal_score` (optional): best known weighted minutes for normalization
 
+**Attribution**
+
+This project uses the "Events Scheduling" dataset by `anakin87`, available on the [Hugging Face dataset card](https://huggingface.co/datasets/anakin87/events-scheduling). 
 ### Loading environments
 
 Use `loader.load_environment` for single-turn or `loader.load_environment_multiturn` for multi-turn. Both accept convenience args for dataset sizing and realism.
