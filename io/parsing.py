@@ -4,7 +4,7 @@ from typing import Optional, List, Dict
 def strip_fences_and_maybe_think(text: str, allow_reasoning_tag: bool) -> str:
     s = text.strip()
     # code fences
-    m = re.match(r"(?s)^```(?:json|xml)?\s*(.*?)\s*```$", s)
+    m = re.search(r"```(?:json|xml)?\s*(.*?)\s*```", s, flags=re.S)
     if m:
         s = m.group(1).strip()
     # leading <think>...</think>

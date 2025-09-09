@@ -5,9 +5,9 @@ from ..core.config import PenaltiesMinutes, RealismConfig
 def events_index(events: List[List[str]]) -> dict[str, tuple[str,str]]:
     return {name: (start, end) for name, start, end in events}
 
-def weighted_minutes(name: str, start: str, end: str, priority_names: set[str]) -> float:
+def weighted_minutes(name: str, start: str, end: str, priority_names: set[str], *, allow_cross_midnight: bool) -> float:
     w = 2.0 if name in priority_names else 1.0
-    return w * duration_min(start, end)
+    return w * duration_min(start, end, allow_cross_midnight=allow_cross_midnight)
 
 def wis_optimum(events: List[List[str]], priority_events: List[str], realism: RealismConfig) -> float:
     """Weighted Interval Scheduling optimum in minutes, with optional day-bounds filtering."""
@@ -20,11 +20,13 @@ def wis_optimum(events: List[List[str]], priority_events: List[str], realism: Re
         if realism.enforce_day_bounds and not realism.allow_cross_midnight:
             if sm < ds or em > de:
                 continue
-        dur = max(0, em - sm)
+        dur = duration_min(s, e, allow_cross_midnight=realism.allow_cross_midnight)
         if dur <= 0:
             continue
+        # Normalize wrapped intervals by extending end past midnight when needed
+        end_norm = em + 1440 if (realism.allow_cross_midnight and em < sm) else em
         w = (2.0 if name in pset else 1.0) * dur
-        items.append((sm, em, w))
+        items.append((sm, end_norm, w))
     items.sort(key=lambda x: x[1])
     n = len(items)
     if n == 0: return 1.0
@@ -86,7 +88,7 @@ def score_with_penalties(
             penalty_minutes += penalties.duplicate_event;  continue
         seen.add(nm)
 
-        dur = duration_min(st, en)
+        dur = duration_min(st, en, allow_cross_midnight=realism.allow_cross_midnight)
         if dur <= 0:
             penalty_minutes += penalties.nonpositive_duration;  continue
 
@@ -95,8 +97,9 @@ def score_with_penalties(
             if smin < ds or emin > de:
                 penalty_minutes += penalties.out_of_bounds;  continue
 
-        base_minutes += weighted_minutes(nm, st, en, pset)
-        intervals.append((smin, emin))
+        base_minutes += weighted_minutes(nm, st, en, pset, allow_cross_midnight=realism.allow_cross_midnight)
+        end_norm = emin + 1440 if (realism.allow_cross_midnight and emin < smin) else emin
+        intervals.append((smin, end_norm))
 
     # overlaps
     overlaps = find_overlaps(intervals)

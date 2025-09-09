@@ -46,14 +46,15 @@ def check_conflicts(
             report["duplicates"].append(nm);  continue
         seen.add(nm)
 
-        if duration_min(st, en) <= 0:
+        if duration_min(st, en, allow_cross_midnight=allow_cross_midnight) <= 0:
             report["nonpositive"].append(nm);  continue
 
         smin, emin = hhmm_to_min(st), hhmm_to_min(en)
         if not allow_cross_midnight and (smin < ds or emin > de):
             report["out_of_bounds"].append(nm);  continue
 
-        intervals.append((smin, emin))
+        end_norm = emin + 1440 if (allow_cross_midnight and emin < smin) else emin
+        intervals.append((smin, end_norm))
         chosen_norm.append((nm, st, en))
 
     # overlaps

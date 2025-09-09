@@ -107,15 +107,15 @@ def load_environment_multiturn(
     )
     rubric = EventSchedulingRubric(cfg)
 
-    mt_cfg = MultiTurnConfig(max_turns=max_turns)
-
     env = EventSchedulingMultiTurnEnv(
-        mt_cfg=mt_cfg,
         dataset=train_split,
         eval_dataset=eval_split,
         parser=None,
         system_prompt=SYSTEM_MULTI,
         rubric=rubric,
+        max_turns=max_turns,
         message_type="chat",
+        feedback_role="user",
+        stop_early_on_clean=True,
     )
     return env

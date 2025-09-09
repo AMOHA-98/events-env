@@ -1,7 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, Optional
 
-@dataclass
+@dataclass(slots=True)
 class PenaltiesMinutes:
     hallucinated_event: float = 10.0
     time_mismatch: float = 10.0
@@ -11,7 +11,7 @@ class PenaltiesMinutes:
     out_of_bounds: float = 10.0          # per offending event
     min_gap_violation: float = 10.0      # per violation
 
-@dataclass
+@dataclass(slots=True)
 class RealismConfig:
     enforce_day_bounds: bool = True
     day_start: str = "00:00"
@@ -21,16 +21,16 @@ class RealismConfig:
     # Hooks for future realism
     enforce_venue_exclusive: bool = False  # requires dataset locations/venues
 
-@dataclass
+@dataclass(slots=True)
 class EventRubricConfig:
     normalize_with_optimal: Literal["dataset", "dp", "none"] = "dataset"
     strict_times: bool = True
     clip_to_unit: bool = True
     allow_reasoning_tag: bool = True
-    penalties: PenaltiesMinutes = PenaltiesMinutes()
-    realism: RealismConfig = RealismConfig()
+    penalties: PenaltiesMinutes = field(default_factory=PenaltiesMinutes)
+    realism: RealismConfig = field(default_factory=RealismConfig)
 
-@dataclass
+@dataclass(slots=True)
 class MultiTurnConfig:
     max_turns: int = 3
     feedback_role: Literal["system", "user"] = "user"

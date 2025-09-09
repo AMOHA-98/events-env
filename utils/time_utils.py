@@ -7,8 +7,12 @@ def min_to_hhmm(x: int) -> str:
     m = x % 60
     return f"{h:02d}:{m:02d}"
 
-def duration_min(start: str, end: str) -> int:
-    return max(0, hhmm_to_min(end) - hhmm_to_min(start))
+def duration_min(start: str, end: str, *, allow_cross_midnight: bool = False) -> int:
+    s = hhmm_to_min(start)
+    e = hhmm_to_min(end)
+    if allow_cross_midnight and e < s:
+        e += 1440
+    return max(0, e - s)
 
 def no_overlap(intervals: list[tuple[int,int]]) -> bool:
     ints = sorted(intervals, key=lambda x: x[0])

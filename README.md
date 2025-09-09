@@ -62,6 +62,21 @@ mt_env = load_environment_multiturn(
 
 Both envs produce prompts of the form `[{role: system}, {role: user}]` and expect the model to answer with ONLY JSON or XML schedule formats.
 
+### Multi-turn implementation
+
+`EventSchedulingMultiTurnEnv` subclasses `verifiers.MultiTurnEnv` and implements `env_response` (validator feedback) and `is_completed` (early stop on clean or when `max_turns` reached). This aligns with the verifiers trainers.
+
+### Evaluate with verifiers CLI
+
+You can run quick evaluations with the CLI once the package is installed in your environment:
+
+```bash
+vf-eval events-env --env-func events_env.io.loader.load_environment_multiturn -n 20 -r 3 \
+  --sampling-args '{"extra_body": {"logprobs": true, "top_logprobs": 5}}'
+```
+
+Adjust `-n` (examples) and `-r` (repetitions/seeds) as desired. For single-turn, use `events_env.io.loader.load_environment` for `--env-func`.
+
 ### Schedule formats
 
 - JSON: `{ "schedule": [{"name": "...", "start": "HH:MM", "end": "HH:MM"}, ...] }`

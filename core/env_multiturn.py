@@ -1,9 +1,7 @@
 from typing import List, Dict, Any, Union, Literal, Tuple
-from verifiers.envs.environment import Environment
-from openai import OpenAI
+from verifiers.envs.multiturn import MultiTurnEnv
 from ..io.parsing import parse_schedule_any
 from ..evals.conflict_checker import check_conflicts
-from .config import MultiTurnConfig
 
 SYSTEM = (
     "You are a scheduling assistant. Given an events list and priority names, "
@@ -13,85 +11,83 @@ SYSTEM = (
     "Use only listed events, exact times, avoid overlaps, honor day bounds. /no_think"
 )
 
-class EventSchedulingMultiTurnEnv(Environment):
-    """
-    Multi-turn: propose -> internal feedback -> revise (no external tool dependency).
-    Feedback is injected as a message describing issues.
-    """
-    def __init__(self, mt_cfg: MultiTurnConfig, message_type: Literal["chat","completion"]="chat", **kwargs):
-        super().__init__(message_type=message_type, **kwargs)
-        self.message_type = message_type
-        self.mt_cfg = mt_cfg
-
-    async def _ask(self, client: OpenAI, model: str, messages, sampling_args):
-        return await self.get_model_response(
-            client=client,
-            model=model,
-            prompt=messages,
-            sampling_args=sampling_args,
-            message_type="chat",
-        )
-
-    async def rollout(
+class EventSchedulingMultiTurnEnv(MultiTurnEnv):
+    """Propose -> validator feedback -> revise, built on verifiers.MultiTurnEnv."""
+    def __init__(
         self,
-        client: OpenAI,
-        model: str,
-        prompt: Union[str, List[Dict[str, Any]]],
-        answer: str,
-        task: str = "default",
-        info: Dict[str, Any] = {},
-        sampling_args: Dict[str, Any] = {},
+        *,
+        max_turns: int = 3,
+        feedback_role: Literal["system","user"] = "user",
+        stop_early_on_clean: bool = True,
         **kwargs: Any,
     ):
-        # prompt is messages [system, user]
-        messages: List[Dict[str,str]] = list(prompt)  # copy
-        all_responses = []
+        super().__init__(max_turns=max_turns, **kwargs)
+        self.feedback_role = feedback_role
+        self.stop_early_on_clean = stop_early_on_clean
 
-        for turn in range(self.mt_cfg.max_turns):
-            resp = await self._ask(client, model, messages, sampling_args)
-            all_responses.append(resp)
+    async def env_response(self, messages: List[Dict[str,str]], state: Dict[str,Any], **kwargs: Any):
+        # Extract last assistant output
+        last_text = ""
+        if messages and messages[-1].get("role") == "assistant":
+            last_text = messages[-1].get("content", "")
 
-            text = resp.choices[0].message.content if hasattr(resp, "choices") else str(resp)
-            # Try to parse; if parseable, run internal checks and possibly ask for revision
-            schedule = parse_schedule_any(text, allow_reasoning_tag=True)
-            if schedule is None:
-                feedback = (
-                    "Your output was not a valid JSON or XML schedule. "
-                    "Please output only one of the required formats. "
-                    "Do not include explanations."
-                )
-            else:
-                # Build quick feedback from answer->constraints
-                import json
-                info_obj = json.loads(answer)
-                # Pull realism/strict settings from the attached rubric if available
-                rubric_cfg = getattr(getattr(self, "rubric", None), "cfg", None)
-                strict_times = getattr(rubric_cfg, "strict_times", True)
-                realism = getattr(rubric_cfg, "realism", None)
-                day_start = getattr(realism, "day_start", "00:00") if realism else "00:00"
-                day_end = getattr(realism, "day_end", "24:00") if realism else "24:00"
-                allow_cross_midnight = getattr(realism, "allow_cross_midnight", False) if realism else False
-                min_gap_minutes = getattr(realism, "min_gap_minutes", 0) if realism else 0
+        # Track turn
+        state = dict(state or {})
+        state["turn"] = int(state.get("turn", 0)) + 1
 
-                rep = check_conflicts(
-                    proposal=schedule,
-                    catalog=info_obj["events"],
-                    strict_times=strict_times,
-                    day_start=day_start,
-                    day_end=day_end,
-                    allow_cross_midnight=allow_cross_midnight,
-                    min_gap_minutes=min_gap_minutes,
-                )
-                if rep["summary"] == "No issues found." and self.mt_cfg.stop_early_on_clean:
-                    break
-                feedback = (
-                    f"Validator feedback:\n{rep['summary']}\n"
-                    "Revise and return ONLY the schedule in JSON or XML. No commentary."
-                )
+        # Attempt to parse schedule
+        schedule = parse_schedule_any(last_text, allow_reasoning_tag=True)
+        if schedule is None:
+            feedback = (
+                "Your output was not a valid JSON or XML schedule. "
+                "Please output only one of the required formats. "
+                "Do not include explanations."
+            )
+            return [{"role": self.feedback_role, "content": feedback}], state
 
-            messages.append({"role": "assistant", "content": text})
-            messages.append({"role": self.mt_cfg.feedback_role, "content": feedback})
+        # Build validator feedback with rubric settings
+        import json
+        answer = kwargs.get("answer", None)
+        try:
+            info_obj = json.loads(answer) if isinstance(answer, str) else (answer or {})
+        except Exception:
+            info_obj = {}
 
-        # Return the last assistant message only
-        final_text = all_responses[-1].choices[0].message.content if all_responses else ""
-        return [{"role": "assistant", "content": final_text}], {"responses": all_responses}
+        rubric_cfg = getattr(getattr(self, "rubric", None), "cfg", None)
+        strict_times = getattr(rubric_cfg, "strict_times", True)
+        realism = getattr(rubric_cfg, "realism", None)
+        day_start = getattr(realism, "day_start", "00:00") if realism else "00:00"
+        day_end = getattr(realism, "day_end", "24:00") if realism else "24:00"
+        allow_cross_midnight = getattr(realism, "allow_cross_midnight", False) if realism else False
+        min_gap_minutes = getattr(realism, "min_gap_minutes", 0) if realism else 0
+
+        rep = check_conflicts(
+            proposal=schedule,
+            catalog=info_obj.get("events", []),
+            strict_times=strict_times,
+            day_start=day_start,
+            day_end=day_end,
+            allow_cross_midnight=allow_cross_midnight,
+            min_gap_minutes=min_gap_minutes,
+        )
+        state["validator_report"] = rep
+        state["normalized_schedule"] = rep.get("normalized")
+
+        if rep["summary"] == "No issues found.":
+            if self.stop_early_on_clean:
+                # Empty env message signals completion for many trainers, but we still return a gentle ack
+                return [{"role": self.feedback_role, "content": "Looks good."}], state
+
+        feedback = (
+            f"Validator feedback:\n{rep['summary']}\n"
+            "Revise and return ONLY the schedule in JSON or XML. No commentary."
+        )
+        return [{"role": self.feedback_role, "content": feedback}], state
+
+    async def is_completed(self, messages: List[Dict[str,str]], state: Dict[str,Any], **kwargs: Any) -> bool:
+        # Early stop on clean report
+        rep = (state or {}).get("validator_report", {})
+        if self.stop_early_on_clean and rep.get("summary") == "No issues found.":
+            return True
+        # Or stop when reaching max turns
+        return int((state or {}).get("turn", 0)) >= int(getattr(self, "max_turns", 3))
